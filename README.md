@@ -33,8 +33,18 @@ O **github-statistics** (`github-stats`) é uma ferramenta CLI com dashboard int
 
 A aplicação inclui:
 - **Painéis Navegáveis via Teclado:** Visão Geral, Linguagens (em bytes e percentual), Histórico de Atividade (sparkline de commits nos últimos 12 meses), Top Repositórios por estrelas, Issues & Pull Requests, Tópicos/Tags e Releases.
-- **Métricas Abrangentes:** Contagem total de repositórios, estrelas, forks, watchers, commits globais, linhas de código estimadas, linhas adicionadas e deletadas ao longo da história, e tamanho médio dos repositórios.
-- **Performance e Concorrência:** Coleta otimizada através de um pool de paralelismo configurável (`--concurrency`), além de cache local em disco com TTL para evitar requisições redundantes e respeitar limites de taxa (rate limits).
+- **Métricas Abrangentes:** Contagem total de repositórios, estrelas, forks, watchers, seus commits, linhas de código estimadas, linhas adicionadas e deletadas por você ao longo da história, e tamanho médio dos repositórios.
+- **Performance e Concorrência:** Os repositórios e a maior parte das métricas vêm de consultas GraphQL paginadas; apenas as estatísticas de linhas/atividade usam a API REST, em um pool de paralelismo configurável (`--concurrency`). Há também cache local em disco com TTL e tratamento automático de rate limits.
+
+### Como as métricas são calculadas
+| Métrica | Origem |
+| --- | --- |
+| Commits, linhas adicionadas/removidas e atividade dos últimos 12 meses | **Do usuário analisado** (commits filtrados por autor; linhas e atividade a partir das estatísticas de contribuidores do GitHub) |
+| Issues, PRs, releases, estrelas, forks, tamanho, linguagens, tópicos | Totais de cada repositório |
+| Watchers | Watchers reais do repositório (não é o número de estrelas) |
+| Linhas de código (est.) | Bytes de código por linguagem ÷ 40 |
+
+> O GitHub responde `202` enquanto calcula as estatísticas de linhas/atividade. Se ainda não estiverem prontas após algumas tentativas, o repositório fica **sem estatísticas** e o Overview exibe um aviso; rode novamente com `--no-cache` mais tarde.
 
 # 📋 Motivo
 O projeto nasceu porque queria extrair estatísticas do meu perfil do GitHub e não achei locais ou ferramentas disponíveis que fizessem isso de forma completa, detalhada e direto no terminal.
@@ -42,18 +52,19 @@ O projeto nasceu porque queria extrair estatísticas do meu perfil do GitHub e n
 # 💻 Como iniciar
 
 ### Requisitos
-- [Node.js](https://nodejs.org/) (versão `>= 18.0.0` recomendada)
+- [Node.js](https://nodejs.org/) (versão `>= 20`)
 - [npm](https://www.npmjs.com/)
 - [GitHub CLI (gh)](https://cli.github.com/) (opcional, para autenticação automática simplificada)
+- Um terminal interativo (TTY): a CLI encerra com erro se a saída for redirecionada ou executada em pipe
 
 ### Autenticação
-A CLI suporta autenticação através do GitHub CLI (`gh`) ou via variável de ambiente:
+A CLI suporta autenticação através de variável de ambiente ou do GitHub CLI (`gh`). Se `GITHUB_TOKEN` estiver definido, ele tem prioridade; caso contrário, é usado o token do `gh`:
 ```sh
-# Opção A: via GitHub CLI (recomendado)
-gh auth login
-
-# Opção B: via Token de Acesso Pessoal (PAT)
+# Opção A: via Token de Acesso Pessoal (PAT) — tem prioridade
 export GITHUB_TOKEN="ghp_seu_token_aqui"
+
+# Opção B: via GitHub CLI
+gh auth login
 ```
 
 ### Instalação
@@ -91,6 +102,22 @@ github-stats
   npm start
   ```
 
+### Desenvolvimento
+```sh
+npm run dev      # executa src/index.ts direto com tsx (aceita as mesmas flags: npm run dev -- --fast)
+npm test         # testes unitários (node:test)
+npm run lint     # ESLint
+npm run build    # compila para dist/
+```
+
+### Atalhos do teclado
+| Tecla | Ação |
+| --- | --- |
+| `←` / `→` ou `h` / `l` | Painel anterior / próximo |
+| `1`–`7` | Ir direto para o painel |
+| `r` | Recarregar (apaga o cache do usuário e busca tudo de novo) |
+| `q` ou `Ctrl+C` | Sair |
+
 ### Opções e Flags CLI
 ```sh
 github-stats [opções]
@@ -99,14 +126,21 @@ Opções:
   -V, --version           Exibe a versão instalada
   --scope <scope>         Escopo de repositórios: public, private, all (padrão: "all")
   --include-forks         Inclui repositórios clonados/forks (padrão: false)
-  --include-orgs          Inclui repositórios das organizações das quais participa (padrão: false)
+  --include-orgs          Inclui repositórios de organizações das quais participa (padrão: false)
   --no-cache              Ignora o cache local e busca dados atualizados
-  --cache-ttl <minutes>   Tempo de vida do cache em minutos (padrão: "60")
-  --fast                  Modo rápido: pula métricas mais lentas (atividade de commits/linhas)
-  --concurrency <number>  Número de requisições paralelas simultâneas (padrão: "5")
+  --cache-ttl <minutes>   Tempo de vida do cache em minutos; 0 desativa a leitura (padrão: 60)
+  --fast                  Modo rápido: pula linhas adicionadas/removidas e atividade de commits
+  --concurrency <number>  Número de requisições paralelas simultâneas, inteiro >= 1 (padrão: 5)
   --user <username>       Usuário do GitHub a analisar (padrão: usuário autenticado)
   -h, --help              Exibe o guia de ajuda
 ```
+
+- **`--scope`** filtra por visibilidade (`public`, `private` ou `all`).
+- **`--include-orgs`**: sem a flag, entram apenas repositórios próprios e de colaboração; com ela, também os de organizações das quais você é membro.
+- **`--user`**: analisa outro usuário. Repositórios privados só são visíveis para o usuário autenticado, então para outras pessoas aparecem apenas os públicos.
+
+### Cache
+Os dados ficam em `~/.github-stats/cache-<usuario>.json` (um arquivo por usuário, com permissão `0600` e diretório `0700`, pois podem conter dados de repositórios privados). O cache só é reaproveitado quando usuário, filtros (`--scope`, `--include-forks`, `--include-orgs`) e `--fast` coincidem e o TTL não expirou. `--cache-ttl 0` desativa a leitura do cache.
 
 ---
 
@@ -118,8 +152,18 @@ Opções:
 
 Features include:
 - **Interactive Keyboard-Navigated Panels:** Overview, Languages (bytes & percentage breakdown), 12-Month Commit Activity (with terminal sparklines), Top Repositories sorted by stars, Issues & Pull Requests breakdown, Topics/Tags, and Releases.
-- **Deep Metrics:** Total repositories, stars, forks, watchers, all-time commits, estimated lines of code, lines added and removed across commit history, and average repository size.
-- **Fast & Parallelized:** High-speed data extraction using a configurable worker pool (`--concurrency`), coupled with local TTL-based caching to minimize API rate limit usage.
+- **Deep Metrics:** Total repositories, stars, forks, watchers, your commits, estimated lines of code, lines added and removed by you across commit history, and average repository size.
+- **Fast & Parallelized:** Repositories and most metrics come from paginated GraphQL queries; only the line/activity statistics use the REST API, through a configurable worker pool (`--concurrency`). Local TTL-based caching and automatic rate limit handling keep API usage low.
+
+### How metrics are computed
+| Metric | Source |
+| --- | --- |
+| Commits, lines added/removed and 12-month activity | **The analysed user's own** (commits filtered by author; lines and activity from GitHub's contributor statistics) |
+| Issues, PRs, releases, stars, forks, size, languages, topics | Repository totals |
+| Watchers | Real repository watchers (not the star count) |
+| Lines of code (est.) | Language bytes ÷ 40 |
+
+> GitHub answers `202` while it computes line/activity statistics. If they are still not ready after a few retries, the repository is left **without stats** and the Overview shows a warning; run again later with `--no-cache`.
 
 # 📋 Motivation
 This project was born out of the need to extract comprehensive statistics from my GitHub profile after not finding existing tools or platforms that provided this detailed data directly in the terminal.
@@ -127,18 +171,19 @@ This project was born out of the need to extract comprehensive statistics from m
 # 💻 Getting Started
 
 ### Prerequisites
-- [Node.js](https://nodejs.org/) (`>= 18.0.0` recommended)
+- [Node.js](https://nodejs.org/) (`>= 20`)
 - [npm](https://www.npmjs.com/)
 - [GitHub CLI (gh)](https://cli.github.com/) (optional, for streamlined authentication)
+- An interactive terminal (TTY): the CLI exits with an error when output is redirected or piped
 
 ### Authentication
-Authenticate either using GitHub CLI or an environment variable:
+Authenticate either using an environment variable or the GitHub CLI. `GITHUB_TOKEN` takes priority when set; otherwise the `gh` token is used:
 ```sh
-# Option A: via GitHub CLI (recommended)
-gh auth login
-
-# Option B: via Personal Access Token (PAT)
+# Option A: via Personal Access Token (PAT) — takes priority
 export GITHUB_TOKEN="ghp_your_token_here"
+
+# Option B: via GitHub CLI
+gh auth login
 ```
 
 ### Installation
@@ -176,6 +221,22 @@ github-stats
   npm start
   ```
 
+### Development
+```sh
+npm run dev      # runs src/index.ts directly with tsx (same flags: npm run dev -- --fast)
+npm test         # unit tests (node:test)
+npm run lint     # ESLint
+npm run build    # compile to dist/
+```
+
+### Keyboard shortcuts
+| Key | Action |
+| --- | --- |
+| `←` / `→` or `h` / `l` | Previous / next panel |
+| `1`–`7` | Jump to a panel |
+| `r` | Reload (clears the user's cache and fetches everything again) |
+| `q` or `Ctrl+C` | Quit |
+
 ### CLI Command Options
 ```sh
 github-stats [options]
@@ -184,14 +245,21 @@ Options:
   -V, --version           Output version number
   --scope <scope>         Repository scope: public, private, all (default: "all")
   --include-forks         Include forked repositories (default: false)
-  --include-orgs          Include organization repositories (default: false)
+  --include-orgs          Include repositories of organizations you belong to (default: false)
   --no-cache              Bypass local cache and fetch fresh data
-  --cache-ttl <minutes>   Cache time-to-live in minutes (default: "60")
-  --fast                  Fast mode: skip slower historical commit/line metrics
-  --concurrency <number>  Number of concurrent enrichment requests (default: "5")
+  --cache-ttl <minutes>   Cache time-to-live in minutes; 0 disables cache reads (default: 60)
+  --fast                  Fast mode: skip lines added/removed and commit activity
+  --concurrency <number>  Number of concurrent requests, integer >= 1 (default: 5)
   --user <username>       Target GitHub username (defaults to authenticated user)
   -h, --help              Display help guide
 ```
+
+- **`--scope`** filters by visibility (`public`, `private` or `all`).
+- **`--include-orgs`**: without it only your own and collaborator repositories are listed; with it, repositories of organizations you are a member of are added too.
+- **`--user`**: analyse another user. Private repositories are only visible to the authenticated user, so for anyone else only public ones show up.
+
+### Cache
+Data is stored in `~/.github-stats/cache-<user>.json` (one file per user, mode `0600` inside a `0700` directory, since it may contain private repository data). The cache is reused only when the user, filters (`--scope`, `--include-forks`, `--include-orgs`) and `--fast` match and the TTL has not expired. `--cache-ttl 0` disables cache reads.
 
 # 🤝 Contribuidores / Contributors
  <a href="https://github.com/bgluis/github-statistics/graphs/contributors">
