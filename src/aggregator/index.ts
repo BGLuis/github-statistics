@@ -1,4 +1,3 @@
-import dayjs from 'dayjs';
 import { AggregatedStats, RepoData } from '../types/index.js';
 
 export function aggregateStats(repos: RepoData[]): AggregatedStats {
@@ -19,6 +18,7 @@ export function aggregateStats(repos: RepoData[]): AggregatedStats {
   let totalPRsClosed = 0;
   let totalReleases = 0;
   let totalSizeKB = 0;
+  let reposStatsUnavailable = 0;
 
   for (const repo of repos) {
     totalStars += repo.stars;
@@ -34,6 +34,7 @@ export function aggregateStats(repos: RepoData[]): AggregatedStats {
     totalPRsClosed += repo.closedPRs;
     totalReleases += repo.releases;
     totalSizeKB += repo.size;
+    if (repo.statsStatus === 'unavailable') reposStatsUnavailable++;
 
     // Accumulate languages
     for (const [lang, bytes] of Object.entries(repo.languages)) {
@@ -47,7 +48,7 @@ export function aggregateStats(repos: RepoData[]): AggregatedStats {
 
     // Accumulate commit activity
     for (const week of repo.commitActivity) {
-      const month = dayjs.unix(week.week).format('YYYY-MM');
+      const month = new Date(week.week * 1000).toISOString().slice(0, 7);
       monthlyCommits[month] = (monthlyCommits[month] ?? 0) + week.total;
     }
   }
@@ -73,6 +74,7 @@ export function aggregateStats(repos: RepoData[]): AggregatedStats {
     totalPRsMerged,
     totalPRsClosed,
     totalReleases,
+    reposStatsUnavailable,
     avgRepoSize: repos.length > 0 ? Math.round(totalSizeKB / repos.length) : 0,
     totalSizeKB,
     totalBytes,

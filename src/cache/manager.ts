@@ -3,18 +3,32 @@ import * as path from 'path';
 import * as os from 'os';
 import { CacheData, FilterOptions } from '../types/index.js';
 
-const CACHE_DIR = path.join(os.homedir(), '.github-stats');
-const CACHE_FILE = path.join(CACHE_DIR, 'cache.json');
+export const CACHE_VERSION = 2;
 
-export function readCache(username: string, filters: FilterOptions, ttlMinutes: number): CacheData | null {
+function cacheDir(): string {
+  return process.env.GITHUB_STATS_CACHE_DIR ?? path.join(os.homedir(), '.github-stats');
+}
+
+function cacheFile(username: string): string {
+  const safeName = username.toLowerCase().replace(/[^a-z0-9-]/g, '-');
+  return path.join(cacheDir(), `cache-${safeName}.json`);
+}
+
+export function readCache(
+  username: string,
+  filters: FilterOptions,
+  fast: boolean,
+  ttlMinutes: number,
+  now: number = Date.now()
+): CacheData | null {
+  if (ttlMinutes <= 0) return null;
+
   try {
-    if (!fs.existsSync(CACHE_FILE)) return null;
-    const raw = fs.readFileSync(CACHE_FILE, 'utf-8');
-    const cache: CacheData = JSON.parse(raw);
+    const cache: CacheData = JSON.parse(fs.readFileSync(cacheFile(username), 'utf-8'));
 
+    if (cache.version !== CACHE_VERSION) return null;
     if (cache.username !== username) return null;
-
-    // Check filters match
+    if (cache.fast !== fast) return null;
     if (
       cache.filters.scope !== filters.scope ||
       cache.filters.includeForks !== filters.includeForks ||
@@ -23,11 +37,8 @@ export function readCache(username: string, filters: FilterOptions, ttlMinutes: 
       return null;
     }
 
-    // Check TTL
-    const fetchedAt = new Date(cache.fetchedAt).getTime();
-    const now = Date.now();
-    const diffMinutes = (now - fetchedAt) / 1000 / 60;
-    if (diffMinutes > ttlMinutes) return null;
+    const ageMinutes = (now - new Date(cache.fetchedAt).getTime()) / 1000 / 60;
+    if (ageMinutes > ttlMinutes) return null;
 
     return cache;
   } catch {
@@ -36,21 +47,24 @@ export function readCache(username: string, filters: FilterOptions, ttlMinutes: 
 }
 
 export function writeCache(data: CacheData): void {
+  const file = cacheFile(data.username);
+  const tmp = `${file}.${process.pid}.tmp`;
   try {
-    if (!fs.existsSync(CACHE_DIR)) {
-      fs.mkdirSync(CACHE_DIR, { recursive: true });
-    }
-    fs.writeFileSync(CACHE_FILE, JSON.stringify(data, null, 2));
+    fs.mkdirSync(cacheDir(), { recursive: true, mode: 0o700 });
+    // mkdir's mode only applies on creation; tighten a directory left by an older version.
+    fs.chmodSync(cacheDir(), 0o700);
+    fs.writeFileSync(tmp, JSON.stringify(data), { mode: 0o600 });
+    fs.renameSync(tmp, file);
+    // Pre-v2 single-file cache: world-readable and holds private repo data.
+    fs.rmSync(path.join(cacheDir(), 'cache.json'), { force: true });
   } catch {
-    // ignore cache write errors
+    fs.rmSync(tmp, { force: true });
   }
 }
 
-export function clearCache(): void {
+export function clearCache(username: string): void {
   try {
-    if (fs.existsSync(CACHE_FILE)) {
-      fs.unlinkSync(CACHE_FILE);
-    }
+    fs.rmSync(cacheFile(username), { force: true });
   } catch {
     // ignore cache clear errors
   }

@@ -18,22 +18,23 @@ export interface RepoData {
   openPRs: number;
   mergedPRs: number;
   closedPRs: number;
-  totalCommits: number;
-  linesAdded: number;   // total lines added across all commits
-  linesDeleted: number; // total lines deleted across all commits
+  totalCommits: number; // commits by the analysed user on the default branch
+  linesAdded: number;   // lines added by the analysed user
+  linesDeleted: number; // lines deleted by the analysed user
   releases: number;
-  contributors: number;
-  commitActivity: WeeklyActivity[];
+  commitActivity: WeeklyActivity[]; // commits by the analysed user, per week
+  statsStatus: StatsStatus;
   createdAt: string;
   updatedAt: string;
   pushedAt: string;
   htmlUrl: string;
 }
 
+export type StatsStatus = 'ok' | 'skipped' | 'unavailable';
+
 export interface WeeklyActivity {
   week: number; // unix timestamp
   total: number;
-  days: number[];
 }
 
 export interface AggregatedStats {
@@ -50,6 +51,7 @@ export interface AggregatedStats {
   totalPRsMerged: number;
   totalPRsClosed: number;
   totalReleases: number;
+  reposStatsUnavailable: number; // repos whose line/activity stats could not be fetched
   avgRepoSize: number;
   totalSizeKB: number;
   totalBytes: number;           // sum of all language bytes
@@ -60,14 +62,18 @@ export interface AggregatedStats {
   monthlyCommits: Record<string, number>; // 'YYYY-MM' -> count
 }
 
-
+export interface GitHubUser {
+  login: string;
+  id: string; // GraphQL node id
+}
 
 export interface CacheData {
+  version: number;
   username: string;
   fetchedAt: string;
   repos: RepoData[];
-  aggregated: AggregatedStats;
   filters: FilterOptions;
+  fast: boolean;
 }
 
 export interface FilterOptions {

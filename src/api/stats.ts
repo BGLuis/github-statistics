@@ -1,39 +1,57 @@
 import { Octokit } from '@octokit/rest';
-import { getGraphQLClient } from './client.js';
-import { REPO_STATS_QUERY, RepoStatsQueryResult } from './graphql.js';
-import { RepoData } from '../types/index.js';
+import { RepoData, WeeklyActivity } from '../types/index.js';
+
+export type StatsResult<T> = { state: 'ok'; data: T | null } | { state: 'unavailable' };
+
+interface RetryOptions {
+  maxRetries?: number;
+  initialDelayMs?: number;
+  sleep?: (ms: number) => Promise<void>;
+}
+
+export interface ContributorStats {
+  author: { login: string } | null;
+  weeks: Array<{ w: number; a: number; d: number; c: number }>;
+}
+
+export interface UserContribution {
+  linesAdded: number;
+  linesDeleted: number;
+  commitActivity: WeeklyActivity[];
+}
+
+const defaultSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 /**
- * Retry wrapper for GitHub stats endpoints.
- * These endpoints return HTTP 202 while GitHub computes the data server-side.
- * Retries with exponential backoff: 3s, 5s, 7s, 9s, 11s...
+ * GitHub stats endpoints answer HTTP 202 while computing the data server-side,
+ * so we poll with a growing delay: 3s, 5s, 7s, 9s, 11s...
  */
-async function fetchStatsWithRetry<T>(
+export async function fetchStatsWithRetry<T>(
   fn: () => Promise<{ status: number; data: T }>,
-  maxRetries = 5,
-  initialDelayMs = 3000
-): Promise<T | null> {
+  { maxRetries = 5, initialDelayMs = 3000, sleep = defaultSleep }: RetryOptions = {}
+): Promise<StatsResult<T>> {
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
       const response = await fn();
       if (response.status === 202) {
-        const delay = initialDelayMs + attempt * 2000;
-        await new Promise((r) => setTimeout(r, delay));
+        await sleep(initialDelayMs + attempt * 2000);
         continue;
       }
-      return response.data;
-    } catch {
-      return null;
+      return { state: 'ok', data: response.data ?? null };
+    } catch (e: unknown) {
+      // 409 = empty repository: nothing to compute, which is a valid result.
+      if ((e as { status?: number }).status === 409) return { state: 'ok', data: null };
+      return { state: 'unavailable' };
     }
   }
-  return null;
+  return { state: 'unavailable' };
 }
 
 /**
  * Worker pool: runs up to `limit` async tasks concurrently.
  * Each worker picks the next available item atomically — no chunking needed.
  */
-async function withConcurrency<T>(
+export async function withConcurrency<T>(
   items: T[],
   fn: (item: T, index: number) => Promise<void>,
   limit: number
@@ -52,98 +70,62 @@ async function withConcurrency<T>(
   await Promise.all(Array.from({ length: poolSize }, () => worker()));
 }
 
-/** Enrich a single repo with detailed stats from GraphQL + REST */
-async function enrichOne(
-  repo: RepoData,
-  octokit: Octokit,
-  graphqlClient: ReturnType<typeof getGraphQLClient>,
-  fast: boolean
-): Promise<RepoData> {
-  const [owner, name] = repo.fullName.split('/');
+export function extractUserContribution(
+  contributors: ContributorStats[],
+  username: string
+): UserContribution {
+  const login = username.toLowerCase();
+  const result: UserContribution = { linesAdded: 0, linesDeleted: 0, commitActivity: [] };
 
-  try {
-    // ── GraphQL: commits, issues, PRs, releases, contributors ──
-    const result = await graphqlClient<RepoStatsQueryResult>(REPO_STATS_QUERY, { owner, name });
-    const r = result.repository;
-    if (r) {
-      repo.totalCommits = r.defaultBranchRef?.target?.history?.totalCount ?? 0;
-      repo.openIssues   = r.issues.totalCount;
-      repo.closedIssues = r.closedIssues.totalCount;
-      repo.openPRs      = r.pullRequests.totalCount;
-      repo.mergedPRs    = r.mergedPRs.totalCount;
-      repo.closedPRs    = r.closedPRs.totalCount;
-      repo.releases     = r.releases.totalCount;
-      repo.contributors = r.mentionableUsers.totalCount;
+  for (const contributor of contributors) {
+    if (contributor.author?.login.toLowerCase() !== login) continue;
+    for (const week of contributor.weeks) {
+      result.linesAdded += week.a ?? 0;
+      result.linesDeleted += week.d ?? 0;
+      if (week.c > 0) result.commitActivity.push({ week: week.w, total: week.c });
     }
-
-    // ── REST: languages (bytes per language) ──
-    try {
-      const { data: langs } = await octokit.rest.repos.listLanguages({ owner, repo: name });
-      repo.languages = langs as Record<string, number>;
-    } catch {
-      // ignore — empty or inaccessible repo
-    }
-
-    // ── REST: slow stats (commit activity + lines added/deleted) ──
-    // Skipped with --fast. GitHub returns 202 while computing — we retry with backoff.
-    if (!fast) {
-      // 1. Weekly commit activity → monthly chart
-      const activity = await fetchStatsWithRetry<unknown[]>(() =>
-        octokit.rest.repos.getCommitActivityStats({ owner, repo: name }) as Promise<{
-          status: number;
-          data: unknown[];
-        }>
-      );
-      if (Array.isArray(activity)) {
-        repo.commitActivity = (activity as Array<{ week?: number; total?: number; days?: number[] }>).map((a) => ({
-          week: a.week ?? 0,
-          total: a.total ?? 0,
-          days: a.days ?? [],
-        }));
-      }
-
-      // 2. Contributor stats → total lines added/deleted across all commits
-      const contribStats = await fetchStatsWithRetry<
-        Array<{ weeks: Array<{ w: number; a: number; d: number; c: number }> }>
-      >(() =>
-        octokit.rest.repos.getContributorsStats({ owner, repo: name }) as Promise<{
-          status: number;
-          data: Array<{ weeks: Array<{ w: number; a: number; d: number; c: number }> }>;
-        }>
-      );
-      if (Array.isArray(contribStats)) {
-        for (const contributor of contribStats) {
-          for (const week of contributor.weeks) {
-            repo.linesAdded   += week.a ?? 0;
-            repo.linesDeleted += week.d ?? 0;
-          }
-        }
-      }
-    }
-  } catch {
-    // Skip repos we can't access (deleted, renamed, no permission)
   }
 
-  return repo;
+  return result;
+}
+
+async function enrichOne(repo: RepoData, octokit: Octokit, username: string): Promise<RepoData> {
+  const [owner, name] = repo.fullName.split('/');
+
+  const result = await fetchStatsWithRetry<ContributorStats[]>(
+    () =>
+      octokit.rest.repos.getContributorsStats({ owner, repo: name }) as Promise<{
+        status: number;
+        data: ContributorStats[];
+      }>
+  );
+
+  if (result.state === 'unavailable') return { ...repo, statsStatus: 'unavailable' };
+
+  const contribution = Array.isArray(result.data)
+    ? extractUserContribution(result.data, username)
+    : { linesAdded: 0, linesDeleted: 0, commitActivity: [] };
+
+  return { ...repo, ...contribution, statsStatus: 'ok' };
 }
 
 export async function enrichRepos(
   repos: RepoData[],
   octokit: Octokit,
-  token: string,
+  username: string,
   fast: boolean,
   concurrency: number,
   onProgress?: (done: number, total: number, repoName: string) => void
 ): Promise<RepoData[]> {
-  const graphqlClient = getGraphQLClient(token);
+  if (fast) return repos.map((repo) => ({ ...repo, statsStatus: 'skipped' }));
+
   const enriched: RepoData[] = new Array(repos.length);
   let done = 0;
 
   await withConcurrency(
     repos,
     async (repo, index) => {
-      const result = await enrichOne(repo, octokit, graphqlClient, fast);
-      enriched[index] = result;
+      enriched[index] = await enrichOne(repo, octokit, username);
       done++;
       onProgress?.(done, repos.length, repo.name);
     },

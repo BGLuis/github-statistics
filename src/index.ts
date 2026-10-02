@@ -1,30 +1,48 @@
 #!/usr/bin/env node
-import { Command } from 'commander';
+import { createRequire } from 'module';
+import { Command, InvalidArgumentError, Option } from 'commander';
 import React from 'react';
 import { render } from 'ink';
 import chalk from 'chalk';
+import type { Octokit } from '@octokit/rest';
 import { resolveToken } from './auth/token.js';
-import { getRestClient } from './api/client.js';
-import { fetchRepos } from './api/repos.js';
+import { createOctokit } from './api/client.js';
+import { fetchRepos, resolveUser } from './api/repos.js';
 import { enrichRepos } from './api/stats.js';
 import { aggregateStats } from './aggregator/index.js';
-import { readCache, writeCache, clearCache } from './cache/manager.js';
+import { CACHE_VERSION, readCache, writeCache, clearCache } from './cache/manager.js';
 import { App } from './ui/App.js';
-import { CLIOptions, FilterOptions, CacheData, RepoData, AggregatedStats } from './types/index.js';
+import { CLIOptions, FilterOptions, GitHubUser, RepoData } from './types/index.js';
+
+const { version } = createRequire(import.meta.url)('../package.json') as { version: string };
+
+function integerAtLeast(min: number) {
+  return (value: string): number => {
+    const n = Number(value);
+    if (!Number.isInteger(n) || n < min) {
+      throw new InvalidArgumentError(`must be an integer >= ${min}.`);
+    }
+    return n;
+  };
+}
 
 const program = new Command();
 
 program
   .name('github-stats')
   .description('Interactive GitHub profile statistics dashboard')
-  .version('1.0.0')
-  .option('--scope <scope>', 'Repo scope: public, private, all', 'all')
+  .version(version)
+  .addOption(
+    new Option('--scope <scope>', 'Repo scope: public, private, all')
+      .choices(['public', 'private', 'all'])
+      .default('all')
+  )
   .option('--include-forks', 'Include forked repositories', false)
   .option('--include-orgs', 'Include organization repositories', false)
   .option('--no-cache', 'Skip cache, fetch fresh data')
-  .option('--cache-ttl <minutes>', 'Cache TTL in minutes', '60')
-  .option('--fast', 'Skip slow metrics (commit activity, contributors)', false)
-  .option('--concurrency <number>', 'Number of concurrent requests (default: 5)', '5')
+  .option('--cache-ttl <minutes>', 'Cache TTL in minutes (0 disables reads)', integerAtLeast(0), 60)
+  .option('--fast', 'Skip slow metrics (lines added/deleted, commit activity)', false)
+  .option('--concurrency <number>', 'Number of concurrent requests', integerAtLeast(1), 5)
   .option('--user <username>', 'GitHub username (defaults to authenticated user)');
 
 program.parse();
@@ -34,11 +52,11 @@ const cliOptions: CLIOptions = {
   scope: opts['scope'] as 'public' | 'private' | 'all',
   includeForks: opts['includeForks'] as boolean,
   includeOrgs: opts['includeOrgs'] as boolean,
-  noCache: !(opts['cache'] as boolean),  // commander inverts --no-cache to opts.cache = false
+  noCache: !(opts['cache'] as boolean), // commander inverts --no-cache to opts.cache = false
   fast: opts['fast'] as boolean,
   user: opts['user'] as string | undefined,
-  cacheTtl: parseInt(opts['cacheTtl'] as string) || 60,
-  concurrency: Math.max(1, parseInt(opts['concurrency'] as string) || 5),
+  cacheTtl: opts['cacheTtl'] as number,
+  concurrency: opts['concurrency'] as number,
 };
 
 const filters: FilterOptions = {
@@ -48,6 +66,11 @@ const filters: FilterOptions = {
 };
 
 async function main() {
+  if (!process.stdin.isTTY || !process.stdout.isTTY) {
+    console.error(chalk.red('❌ github-stats needs an interactive terminal (TTY) to render the dashboard.'));
+    process.exit(1);
+  }
+
   let token: string;
   try {
     token = resolveToken();
@@ -56,41 +79,36 @@ async function main() {
     process.exit(1);
   }
 
-  const octokit = getRestClient(token);
+  const octokit = createOctokit(token);
 
-  // Resolve username
-  let username = cliOptions.user;
-  if (!username) {
-    try {
-      const { data } = await octokit.rest.users.getAuthenticated();
-      username = data.login;
-    } catch {
-      console.error(chalk.red('❌ Failed to get authenticated user. Check your token.'));
-      process.exit(1);
-    }
+  let user: GitHubUser;
+  try {
+    user = await resolveUser(octokit, cliOptions.user);
+  } catch (e: unknown) {
+    console.error(chalk.red(`❌ Failed to resolve GitHub user: ${(e as Error).message}`));
+    process.exit(1);
   }
 
-  console.log(chalk.cyan(`⚡ github-stats — @${username}`));
+  console.log(chalk.cyan(`⚡ github-stats — @${user.login}`));
 
-  // Try cache first
   if (!cliOptions.noCache) {
-    const cached = readCache(username, filters, cliOptions.cacheTtl);
+    const cached = readCache(user.login, filters, cliOptions.fast, cliOptions.cacheTtl);
     if (cached) {
       console.log(chalk.yellow(`📦 Using cached data from ${cached.fetchedAt}`));
-      renderDashboard(username, cached.repos, cached.aggregated, true, cached.fetchedAt, token, octokit);
+      renderDashboard(user, cached.repos, true, cached.fetchedAt, octokit);
       return;
     }
   }
 
-  await fetchAndRender(username, token, octokit);
+  await fetchAndRender(user, octokit);
 }
 
-async function fetchAndRender(username: string, token: string, octokit: ReturnType<typeof getRestClient>) {
+async function fetchAndRender(user: GitHubUser, octokit: Octokit) {
   console.log(chalk.gray('🔍 Fetching repositories...'));
 
-  let repos;
+  let repos: RepoData[];
   try {
-    repos = await fetchRepos(octokit, username, filters, (count) => {
+    repos = await fetchRepos(octokit, user, filters, (count) => {
       process.stdout.write(`\r  Found ${count} repos...`);
     });
   } catch (e: unknown) {
@@ -99,70 +117,66 @@ async function fetchAndRender(username: string, token: string, octokit: ReturnTy
   }
 
   process.stdout.write('\n');
-  console.log(chalk.gray(`📊 Enriching ${repos.length} repositories with detailed stats...`));
-  console.log(chalk.gray('   (This may take a while for large profiles)'));
+  if (!cliOptions.fast) {
+    console.log(chalk.gray(`📊 Computing your commit stats for ${repos.length} repositories...`));
+    console.log(chalk.gray('   (GitHub may take a while to compute these for large profiles)'));
+  }
 
   const enriched = await enrichRepos(
     repos,
     octokit,
-    token,
+    user.login,
     cliOptions.fast,
     cliOptions.concurrency,
     (done, total, repoName) => {
-      process.stdout.write(`\r  [${done}/${total}] ${repoName ?? ''}...`.padEnd(60));
+      process.stdout.write(`\r  [${done}/${total}] ${repoName}...`.padEnd(60));
     }
   );
   process.stdout.write('\n');
 
-  const aggregated = aggregateStats(enriched);
-  const fetchedAt = new Date().toISOString();
+  const unavailable = enriched.filter((r) => r.statsStatus === 'unavailable').length;
+  if (unavailable > 0) {
+    console.log(chalk.yellow(`⚠️  ${unavailable} repositories had no line/activity stats available.`));
+  }
 
-  // Save to cache
-  const cacheData: CacheData = {
-    username: username,
+  const fetchedAt = new Date().toISOString();
+  writeCache({
+    version: CACHE_VERSION,
+    username: user.login,
     fetchedAt,
     repos: enriched,
-    aggregated,
     filters,
-  };
-  writeCache(cacheData);
+    fast: cliOptions.fast,
+  });
 
-  renderDashboard(username, enriched, aggregated, false, fetchedAt, token, octokit);
+  renderDashboard(user, enriched, false, fetchedAt, octokit);
 }
 
 function renderDashboard(
-  username: string,
+  user: GitHubUser,
   repos: RepoData[],
-  aggregated: AggregatedStats,
   cached: boolean,
   fetchedAt: string,
-  token: string,
-  octokit: ReturnType<typeof getRestClient>
+  octokit: Octokit
 ) {
-  // Clear screen
   console.clear();
 
-  let instance: ReturnType<typeof render>;
-
-  const handleReload = () => {
-    clearCache();
-    instance.unmount();
-    fetchAndRender(username, token, octokit);
-  };
-
-  instance = render(
+  const instance = render(
     React.createElement(App, {
-      username,
-      stats: aggregated,
+      username: user.login,
+      stats: aggregateStats(repos),
       repos,
       cached,
       fetchedAt: new Date(fetchedAt).toLocaleString(),
       fast: cliOptions.fast,
-      onReload: handleReload,
+      onReload: () => {
+        clearCache(user.login);
+        instance.unmount();
+        void fetchAndRender(user, octokit);
+      },
     })
   );
 }
-
 
 main().catch((err: unknown) => {
   console.error(chalk.red('Fatal error:', (err as Error).message));

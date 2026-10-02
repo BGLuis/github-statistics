@@ -1,23 +1,23 @@
 import { Octokit } from '@octokit/rest';
-import { graphql } from '@octokit/graphql';
+import { throttling } from '@octokit/plugin-throttling';
+import { retry } from '@octokit/plugin-retry';
 
-let restClient: Octokit | null = null;
-let graphqlClient: typeof graphql | null = null;
+const MAX_RATE_LIMIT_RETRIES = 2;
 
-export function getRestClient(token: string): Octokit {
-  if (!restClient) {
-    restClient = new Octokit({ auth: token });
-  }
-  return restClient;
-}
+const ThrottledOctokit = Octokit.plugin(throttling, retry);
 
-export function getGraphQLClient(token: string) {
-  if (!graphqlClient) {
-    graphqlClient = graphql.defaults({
-      headers: {
-        authorization: `token ${token}`,
-      },
-    });
-  }
-  return graphqlClient;
+export function createOctokit(token: string): Octokit {
+  const warnAndRetry = (kind: string) => (retryAfter: number, _options: object, _octokit: unknown, retryCount: number) => {
+    if (retryCount >= MAX_RATE_LIMIT_RETRIES) return false;
+    process.stderr.write(`\n  ${kind}: waiting ${retryAfter}s before retrying...\n`);
+    return true;
+  };
+
+  return new ThrottledOctokit({
+    auth: token,
+    throttle: {
+      onRateLimit: warnAndRetry('Rate limit hit'),
+      onSecondaryRateLimit: warnAndRetry('Secondary rate limit hit'),
+    },
+  });
 }
