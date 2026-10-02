@@ -55,7 +55,7 @@ O projeto nasceu porque queria extrair estatísticas do meu perfil do GitHub e n
 - [Node.js](https://nodejs.org/) (versão `>= 20`)
 - [npm](https://www.npmjs.com/)
 - [GitHub CLI (gh)](https://cli.github.com/) (opcional, para autenticação automática simplificada)
-- Um terminal interativo (TTY): a CLI encerra com erro se a saída for redirecionada ou executada em pipe
+- Um terminal interativo (TTY) com pelo menos 24 linhas: a CLI encerra com erro se a saída for redirecionada ou executada em pipe, e o dashboard pede para aumentar o terminal se ele for mais baixo. O dashboard usa a tela alternativa do terminal (como `vim`/`htop`), então não deixa resíduos no histórico, inclusive via SSH, e acompanha redimensionamentos
 
 ### Autenticação
 A CLI suporta autenticação através de variável de ambiente ou do GitHub CLI (`gh`). Se `GITHUB_TOKEN` estiver definido, ele tem prioridade; caso contrário, é usado o token do `gh`:
@@ -174,7 +174,7 @@ This project was born out of the need to extract comprehensive statistics from m
 - [Node.js](https://nodejs.org/) (`>= 20`)
 - [npm](https://www.npmjs.com/)
 - [GitHub CLI (gh)](https://cli.github.com/) (optional, for streamlined authentication)
-- An interactive terminal (TTY): the CLI exits with an error when output is redirected or piped
+- An interactive terminal (TTY) with at least 24 rows: the CLI exits with an error when output is redirected or piped, and the dashboard asks you to enlarge a shorter terminal. It runs on the terminal's alternate screen (like `vim`/`htop`), so it leaves nothing in your scrollback, including over SSH, and follows window resizes
 
 ### Authentication
 Authenticate either using an environment variable or the GitHub CLI. `GITHUB_TOKEN` takes priority when set; otherwise the `gh` token is used:
