@@ -1,25 +1,16 @@
 import React from 'react';
 import { Box, Text } from 'ink';
 
-const PANELS = [
-  'Overview',
-  'Languages',
-  'Activity',
-  'Top Repos',
-  'Issues & PRs',
-  'Topics',
-  'Releases',
-];
-
 interface NavBarProps {
+  labels: string[];
   activeIndex: number;
 }
 
-export const NavBar: React.FC<NavBarProps> = ({ activeIndex }) => {
+export const NavBar: React.FC<NavBarProps> = ({ labels, activeIndex }) => {
   return (
-    <Box>
-      {PANELS.map((panel, i) => (
-        <Box key={panel} marginRight={1}>
+    <Box flexWrap="wrap">
+      {labels.map((panel, i) => (
+        <Box key={panel} marginRight={1} flexShrink={0}>
           <Text
             bold={i === activeIndex}
             color={i === activeIndex ? 'cyan' : 'gray'}
@@ -32,5 +23,3 @@ export const NavBar: React.FC<NavBarProps> = ({ activeIndex }) => {
     </Box>
   );
 };
-
-export { PANELS };

@@ -1,13 +1,33 @@
 import React from 'react';
 import { Box, Text } from 'ink';
 import { AggregatedStats } from '../../types/index.js';
+import { padCols, truncateCols } from '../format.js';
+import { useTerminalColumns } from '../useTerminalColumns.js';
 
 interface TopReposProps {
   stats: AggregatedStats;
 }
 
+const PANEL_CHROME = 6;
+const RANK_WIDTH = 4;
+const STARS_WIDTH = 10;
+const FORKS_WIDTH = 10;
+const LANG_WIDTH = 15;
+const ISSUES_WIDTH = 8;
+const MIN_NAME_WIDTH = 15;
+const MAX_NAME_WIDTH = 35;
+
 export const TopRepos: React.FC<TopReposProps> = ({ stats }) => {
+  const columns = useTerminalColumns();
   const repos = stats.topRepos;
+
+  const available = columns - PANEL_CHROME;
+  const baseWidth = RANK_WIDTH + STARS_WIDTH + ISSUES_WIDTH;
+  const showForks = available - MIN_NAME_WIDTH >= baseWidth + FORKS_WIDTH;
+  const showLang = showForks && available - MIN_NAME_WIDTH >= baseWidth + FORKS_WIDTH + LANG_WIDTH;
+  const fixedWidth = baseWidth + (showForks ? FORKS_WIDTH : 0) + (showLang ? LANG_WIDTH : 0);
+  const nameWidth = Math.max(MIN_NAME_WIDTH, Math.min(MAX_NAME_WIDTH, available - fixedWidth));
+  const tableWidth = nameWidth + fixedWidth;
 
   return (
     <Box flexDirection="column" padding={1}>
@@ -15,23 +35,25 @@ export const TopRepos: React.FC<TopReposProps> = ({ stats }) => {
       <Box marginTop={1} flexDirection="column">
         <Box>
           <Text bold color="gray">
-            {'#'.padEnd(4)}
-            {'Name'.padEnd(35)}
-            {'Stars'.padEnd(10)}
-            {'Forks'.padEnd(10)}
-            {'Lang'.padEnd(15)}
+            {padCols('#', RANK_WIDTH)}
+            {padCols('Name', nameWidth)}
+            {padCols('Stars', STARS_WIDTH)}
+            {showForks && padCols('Forks', FORKS_WIDTH)}
+            {showLang && padCols('Lang', LANG_WIDTH)}
             {'Issues'}
           </Text>
         </Box>
-        <Text color="gray">{'-'.repeat(85)}</Text>
+        <Text color="gray">{'-'.repeat(tableWidth)}</Text>
         {repos.map((repo, i) => (
           <Box key={repo.id}>
-            <Text color="gray">{String(i + 1).padEnd(4)}</Text>
-            <Text color="cyan">{repo.name.substring(0, 33).padEnd(35)}</Text>
-            <Text color="yellow">{String('⭐ ' + repo.stars).padEnd(10)}</Text>
-            <Text color="blue">{String('🍴 ' + repo.forks).padEnd(10)}</Text>
-            <Text color="green">{(repo.language ?? 'N/A').substring(0, 13).padEnd(15)}</Text>
-            <Text color="red">{String('🐛 ' + repo.openIssues)}</Text>
+            <Text color="gray">{padCols(String(i + 1), RANK_WIDTH)}</Text>
+            <Text color="cyan">{padCols(truncateCols(repo.name, nameWidth - 2), nameWidth)}</Text>
+            <Text color="yellow">{padCols('🌟 ' + repo.stars, STARS_WIDTH)}</Text>
+            {showForks && <Text color="blue">{padCols('🍴 ' + repo.forks, FORKS_WIDTH)}</Text>}
+            {showLang && (
+              <Text color="green">{padCols(truncateCols(repo.language ?? 'N/A', LANG_WIDTH - 2), LANG_WIDTH)}</Text>
+            )}
+            <Text color="red">{'🐛 ' + repo.openIssues}</Text>
           </Box>
         ))}
       </Box>

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Box, Text, useInput, useApp, Key } from 'ink';
 import { AggregatedStats, RepoData } from '../types/index.js';
 import { Header } from './components/Header.js';
-import { NavBar, PANELS } from './components/NavBar.js';
+import { NavBar } from './components/NavBar.js';
 import { Overview } from './screens/Overview.js';
 import { Languages } from './screens/Languages.js';
 import { Activity } from './screens/Activity.js';
@@ -20,6 +20,24 @@ interface AppProps {
   fast?: boolean;
   onReload: () => void;
 }
+
+interface PanelContext {
+  stats: AggregatedStats;
+  repos: RepoData[];
+  fast?: boolean;
+}
+
+const PANELS: { label: string; render: (ctx: PanelContext) => React.ReactNode }[] = [
+  { label: 'Overview', render: ({ stats, fast }) => <Overview stats={stats} fast={fast} /> },
+  { label: 'Languages', render: ({ stats }) => <Languages stats={stats} /> },
+  { label: 'Activity', render: ({ stats, fast }) => <Activity stats={stats} fast={fast} /> },
+  { label: 'Top Repos', render: ({ stats }) => <TopRepos stats={stats} /> },
+  { label: 'Issues & PRs', render: ({ stats }) => <Issues stats={stats} /> },
+  { label: 'Topics', render: ({ stats }) => <Topics stats={stats} /> },
+  { label: 'Releases', render: ({ stats, repos }) => <Releases stats={stats} repos={repos} /> },
+];
+
+const PANEL_LABELS = PANELS.map((p) => p.label);
 
 export const App: React.FC<AppProps> = ({ username, stats, repos, cached, fetchedAt, fast, onReload }) => {
   const [panelIndex, setPanelIndex] = useState(0);
@@ -40,38 +58,23 @@ export const App: React.FC<AppProps> = ({ username, stats, repos, cached, fetche
     if (key.rightArrow || input === 'l') {
       setPanelIndex((prev) => (prev + 1) % PANELS.length);
     }
-    // Number keys 1-7
-    const num = parseInt(input);
-    if (!isNaN(num) && num >= 1 && num <= PANELS.length) {
+    const num = Number(input);
+    if (/^[1-9]$/.test(input) && num <= PANELS.length) {
       setPanelIndex(num - 1);
     }
   });
-
-  const renderPanel = () => {
-    switch (panelIndex) {
-      case 0: return <Overview stats={stats} fast={fast} />;
-      case 1: return <Languages stats={stats} />;
-      case 2: return <Activity stats={stats} fast={fast} />;
-      case 3: return <TopRepos stats={stats} />;
-      case 4: return <Issues stats={stats} />;
-      case 5: return <Topics stats={stats} />;
-      case 6: return <Releases stats={stats} repos={repos} />;
-      default: return <Overview stats={stats} fast={fast} />;
-    }
-  };
-
 
   return (
     <Box flexDirection="column">
       <Header username={username} cached={cached} fetchedAt={fetchedAt} />
       <Box marginTop={0} paddingX={1}>
-        <NavBar activeIndex={panelIndex} />
+        <NavBar labels={PANEL_LABELS} activeIndex={panelIndex} />
       </Box>
       <Box marginTop={1} borderStyle="single" borderColor="gray">
-        {renderPanel()}
+        {PANELS[panelIndex].render({ stats, repos, fast })}
       </Box>
       <Box marginTop={0} paddingX={1}>
-        <Text color="gray">{'← → navigate  1-7 jump  r reload  q quit'}</Text>
+        <Text color="gray">{`← → navigate  1-${PANELS.length} jump  r reload  q quit`}</Text>
       </Box>
     </Box>
   );

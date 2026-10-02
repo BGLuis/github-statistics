@@ -12,7 +12,7 @@ export const Header: React.FC<HeaderProps> = ({ username, cached, fetchedAt }) =
     <Box flexDirection="column" borderStyle="round" borderColor="cyan" paddingX={1}>
       <Box justifyContent="space-between">
         <Text bold color="cyan">
-          {'⚡ github-stats'}
+          {'📈 github-stats'}
         </Text>
         <Text color="gray">
           {'@'}{username}

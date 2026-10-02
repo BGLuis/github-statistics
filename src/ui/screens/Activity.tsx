@@ -16,15 +16,15 @@ export const Activity: React.FC<ActivityProps> = ({ stats, fast }) => {
   const months: string[] = [];
   const now = new Date();
   for (let i = 11; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+    const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1));
+    months.push(d.toISOString().slice(0, 7));
   }
 
   const values = months.map((m) => stats.monthlyCommits[m] ?? 0);
   const maxVal = Math.max(...values, 1);
 
   const sparkLine = values.map((v) => {
-    const idx = Math.round((v / maxVal) * (SPARK.length - 1));
+    const idx = v > 0 ? Math.max(1, Math.round((v / maxVal) * (SPARK.length - 1))) : 0;
     return SPARK[idx];
   }).join('');
 
@@ -32,13 +32,13 @@ export const Activity: React.FC<ActivityProps> = ({ stats, fast }) => {
 
   return (
     <Box flexDirection="column" padding={1}>
-      <Text bold color="cyan" underline>📅 Commit Activity (last 12 months)</Text>
+      <Text bold color="cyan" underline>📅 Your Commit Activity (last 12 months)</Text>
       {!hasData ? (
         <Box marginTop={1} flexDirection="column">
           <Text color="yellow">
             {fast
-              ? '⚡ Fast mode active — commit activity not collected.\n   Re-run without --fast to see this chart.'
-              : '📭 No commit activity data found for the last 12 months.'}
+              ? '🐇 Fast mode active — commit activity not collected.\n   Re-run without --fast to see this chart.'
+              : '📭 No commits by you found for the last 12 months.'}
           </Text>
         </Box>
       ) : (

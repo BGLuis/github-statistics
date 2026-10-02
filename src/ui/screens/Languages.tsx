@@ -21,8 +21,6 @@ export const Languages: React.FC<LanguagesProps> = ({ stats }) => {
     .sort(([, a], [, b]) => b - a)
     .slice(0, 15);
 
-  const total = sorted.reduce((acc, [, v]) => acc + v, 0);
-
   const items = sorted.map(([lang, bytes], i) => ({
     label: lang,
     value: bytes,
@@ -36,7 +34,7 @@ export const Languages: React.FC<LanguagesProps> = ({ stats }) => {
         <BarChart
           items={items}
           maxBarWidth={40}
-          valueFormatter={(v) => `${fmtBytes(v)} (${total > 0 ? ((v / total) * 100).toFixed(1) : 0}%)`}
+          valueFormatter={(v) => `${fmtBytes(v)} (${stats.totalBytes > 0 ? ((v / stats.totalBytes) * 100).toFixed(1) : 0}%)`}
         />
       </Box>
     </Box>
