@@ -2,6 +2,8 @@ import React from 'react';
 import { Box, Text } from 'ink';
 import { AggregatedStats } from '../../types/index.js';
 import { padCols } from '../format.js';
+import { Panel } from '../components/Panel.js';
+import { useLayout } from '../LayoutContext.js';
 
 interface OverviewProps {
   stats: AggregatedStats;
@@ -34,13 +36,13 @@ const Stat: React.FC<{ emoji: string; label: string; value: string | number; dim
 );
 
 export const Overview: React.FC<OverviewProps> = ({ stats, fast }) => {
+  const { gap } = useLayout();
   const hasLineData = stats.totalLinesAdded > 0 || stats.totalLinesDeleted > 0;
   const lineNote = fast ? '(run without --fast)' : '(unavailable)';
 
   return (
-    <Box flexDirection="column" padding={1}>
-      <Text bold color="cyan" underline>📊 Overview</Text>
-      <Box marginTop={1} flexDirection="column">
+    <Panel title="📊 Overview">
+      <Box flexDirection="column">
         <Stat emoji="📦" label="Repositories"        value={fmt(stats.totalRepos)} />
         <Stat emoji="🌟" label="Total Stars"          value={fmt(stats.totalStars)} />
         <Stat emoji="🍴" label="Total Forks"          value={fmt(stats.totalForks)} />
@@ -57,18 +59,18 @@ export const Overview: React.FC<OverviewProps> = ({ stats, fast }) => {
         <Stat emoji="🏷 " label="Total Releases"      value={fmt(stats.totalReleases)} />
       </Box>
       {fast && (
-        <Box marginTop={1}>
-          <Text color="yellow">🐇 Fast mode: commit activity + line stats skipped. Run without --fast for full data.</Text>
+        <Box marginTop={gap}>
+          <Text color="yellow">🐇 Fast mode: line stats skipped. Run without --fast for full data.</Text>
         </Box>
       )}
       {!fast && stats.reposStatsUnavailable > 0 && (
-        <Box marginTop={1}>
+        <Box marginTop={gap}>
           <Text color="yellow">
-            ⚠ {stats.reposStatsUnavailable} repo(s) sem estatísticas de linhas/atividade (GitHub ainda calculando ou erro). Rode novamente com --no-cache
+            ⚠ {stats.reposStatsUnavailable} repo(s) without line/activity stats. Re-run with --no-cache.
           </Text>
         </Box>
       )}
-    </Box>
+    </Panel>
   );
 };
 

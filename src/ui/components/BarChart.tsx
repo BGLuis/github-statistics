@@ -2,7 +2,7 @@ import React from 'react';
 import { Box, Text } from 'ink';
 import stringWidth from 'string-width';
 import { padCols, truncateCols } from '../format.js';
-import { useTerminalColumns } from '../useTerminalColumns.js';
+import { useLayout } from '../LayoutContext.js';
 
 const PANEL_CHROME = 6;
 const MIN_BAR_WIDTH = 5;
@@ -21,7 +21,7 @@ export const BarChart: React.FC<BarChartProps> = ({
   showValues = true,
   valueFormatter = (v) => v.toLocaleString(),
 }) => {
-  const columns = useTerminalColumns();
+  const { columns } = useLayout();
 
   if (items.length === 0) return <Text color="gray">No data</Text>;
 

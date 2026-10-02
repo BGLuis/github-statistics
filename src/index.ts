@@ -12,6 +12,7 @@ import { enrichRepos } from './api/stats.js';
 import { aggregateStats } from './aggregator/index.js';
 import { CACHE_VERSION, readCache, writeCache, clearCache } from './cache/manager.js';
 import { App } from './ui/App.js';
+import { enterAltScreen, leaveAltScreen, repaintOnResize } from './ui/terminal.js';
 import { CLIOptions, FilterOptions, GitHubUser, RepoData } from './types/index.js';
 
 const { version } = createRequire(import.meta.url)('../package.json') as { version: string };
@@ -159,8 +160,9 @@ function renderDashboard(
   fetchedAt: string,
   octokit: Octokit
 ) {
-  console.clear();
+  enterAltScreen();
 
+  let reloading = false;
   const instance = render(
     React.createElement(App, {
       username: user.login,
@@ -170,12 +172,22 @@ function renderDashboard(
       fetchedAt: new Date(fetchedAt).toLocaleString(),
       fast: cliOptions.fast,
       onReload: () => {
+        reloading = true;
         clearCache(user.login);
         instance.unmount();
+        stopRepaintOnResize();
+        leaveAltScreen();
         void fetchAndRender(user, octokit);
       },
     })
   );
+  const stopRepaintOnResize = repaintOnResize(process.stdout, instance);
+
+  void instance.waitUntilExit().then(() => {
+    if (reloading) return;
+    stopRepaintOnResize();
+    leaveAltScreen();
+  });
 }
 
 main().catch((err: unknown) => {

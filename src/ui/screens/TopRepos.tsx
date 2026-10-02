@@ -2,7 +2,8 @@ import React from 'react';
 import { Box, Text } from 'ink';
 import { AggregatedStats } from '../../types/index.js';
 import { padCols, truncateCols } from '../format.js';
-import { useTerminalColumns } from '../useTerminalColumns.js';
+import { Panel } from '../components/Panel.js';
+import { useLayout } from '../LayoutContext.js';
 
 interface TopReposProps {
   stats: AggregatedStats;
@@ -16,10 +17,11 @@ const LANG_WIDTH = 15;
 const ISSUES_WIDTH = 8;
 const MIN_NAME_WIDTH = 15;
 const MAX_NAME_WIDTH = 35;
+const TABLE_HEADER_ROWS = 2;
 
 export const TopRepos: React.FC<TopReposProps> = ({ stats }) => {
-  const columns = useTerminalColumns();
-  const repos = stats.topRepos;
+  const { columns, contentRows } = useLayout();
+  const repos = stats.topRepos.slice(0, Math.max(0, contentRows - TABLE_HEADER_ROWS));
 
   const available = columns - PANEL_CHROME;
   const baseWidth = RANK_WIDTH + STARS_WIDTH + ISSUES_WIDTH;
@@ -30,9 +32,8 @@ export const TopRepos: React.FC<TopReposProps> = ({ stats }) => {
   const tableWidth = nameWidth + fixedWidth;
 
   return (
-    <Box flexDirection="column" padding={1}>
-      <Text bold color="cyan" underline>🏆 Top Repositories (by stars)</Text>
-      <Box marginTop={1} flexDirection="column">
+    <Panel title="🏆 Top Repositories (by stars)">
+      <Box flexDirection="column">
         <Box>
           <Text bold color="gray">
             {padCols('#', RANK_WIDTH)}
@@ -57,6 +58,6 @@ export const TopRepos: React.FC<TopReposProps> = ({ stats }) => {
           </Box>
         ))}
       </Box>
-    </Box>
+    </Panel>
   );
 };

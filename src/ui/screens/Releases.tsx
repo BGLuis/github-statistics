@@ -2,12 +2,15 @@ import React from 'react';
 import { Box, Text } from 'ink';
 import { AggregatedStats, RepoData } from '../../types/index.js';
 import { padCols, truncateCols } from '../format.js';
-import { useTerminalColumns } from '../useTerminalColumns.js';
+import { Panel } from '../components/Panel.js';
+import { useLayout } from '../LayoutContext.js';
 
 const PANEL_CHROME = 6;
 const RELEASES_WIDTH = 10;
 const MIN_NAME_WIDTH = 15;
 const MAX_NAME_WIDTH = 40;
+// total line, header and separator, plus the gap above the header
+const FIXED_ROWS = 3;
 
 interface ReleasesProps {
   stats: AggregatedStats;
@@ -15,19 +18,18 @@ interface ReleasesProps {
 }
 
 export const Releases: React.FC<ReleasesProps> = ({ stats, repos }) => {
-  const columns = useTerminalColumns();
+  const { columns, contentRows, gap } = useLayout();
   const nameWidth = Math.max(MIN_NAME_WIDTH, Math.min(MAX_NAME_WIDTH, columns - PANEL_CHROME - RELEASES_WIDTH));
   const reposWithReleases = repos
     .filter((r) => r.releases > 0)
     .sort((a, b) => b.releases - a.releases)
-    .slice(0, 15);
+    .slice(0, Math.max(0, Math.min(15, contentRows - FIXED_ROWS - gap)));
 
   return (
-    <Box flexDirection="column" padding={1}>
-      <Text bold color="cyan" underline>🚀 Releases</Text>
-      <Box marginTop={1} flexDirection="column">
+    <Panel title="🚀 Releases">
+      <Box flexDirection="column">
         <Text color="gray">Total releases across all repos: <Text bold color="white">{stats.totalReleases.toLocaleString()}</Text></Text>
-        <Box marginTop={1} flexDirection="column">
+        <Box marginTop={gap} flexDirection="column">
           <Box>
             <Text bold color="gray">{padCols('Repository', nameWidth)}{'Releases'}</Text>
           </Box>
@@ -44,6 +46,6 @@ export const Releases: React.FC<ReleasesProps> = ({ stats, repos }) => {
           )}
         </Box>
       </Box>
-    </Box>
+    </Panel>
   );
 };

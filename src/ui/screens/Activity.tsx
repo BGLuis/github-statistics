@@ -1,5 +1,7 @@
 import React from 'react';
 import { Box, Text } from 'ink';
+import { Panel } from '../components/Panel.js';
+import { useLayout } from '../LayoutContext.js';
 import { AggregatedStats } from '../../types/index.js';
 
 interface ActivityProps {
@@ -10,6 +12,7 @@ interface ActivityProps {
 const SPARK = [' ', '▁', '▂', '▃', '▄', '▅', '▆', '▇', '█'];
 
 export const Activity: React.FC<ActivityProps> = ({ stats, fast }) => {
+  const { gap } = useLayout();
   const hasData = Object.values(stats.monthlyCommits).some((v) => v > 0);
 
   // Get last 12 months
@@ -31,22 +34,17 @@ export const Activity: React.FC<ActivityProps> = ({ stats, fast }) => {
   const items = months.map((m, i) => ({ month: m, commits: values[i] }));
 
   return (
-    <Box flexDirection="column" padding={1}>
-      <Text bold color="cyan" underline>📅 Your Commit Activity (last 12 months)</Text>
+    <Panel title="📅 Your Commit Activity (last 12 months)">
       {!hasData ? (
-        <Box marginTop={1} flexDirection="column">
-          <Text color="yellow">
-            {fast
-              ? '🐇 Fast mode active — commit activity not collected.\n   Re-run without --fast to see this chart.'
-              : '📭 No commits by you found for the last 12 months.'}
-          </Text>
-        </Box>
+        <Text color="yellow">
+          {fast
+            ? '🐇 Fast mode active — commit activity not collected.\n   Re-run without --fast to see this chart.'
+            : '📭 No commits by you found for the last 12 months.'}
+        </Text>
       ) : (
-        <Box marginTop={1} flexDirection="column">
-          <Box>
-            <Text color="green">{sparkLine}</Text>
-          </Box>
-          <Box marginTop={1} flexDirection="column">
+        <>
+          <Text color="green">{sparkLine}</Text>
+          <Box marginTop={gap} flexDirection="column">
             {items.map(({ month, commits }) => (
               <Box key={month}>
                 <Text color="gray">{month}  </Text>
@@ -55,9 +53,9 @@ export const Activity: React.FC<ActivityProps> = ({ stats, fast }) => {
               </Box>
             ))}
           </Box>
-        </Box>
+        </>
       )}
-    </Box>
+    </Panel>
   );
 };
 

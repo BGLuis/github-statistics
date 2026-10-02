@@ -10,6 +10,8 @@ import { TopRepos } from './screens/TopRepos.js';
 import { Issues } from './screens/Issues.js';
 import { Topics } from './screens/Topics.js';
 import { Releases } from './screens/Releases.js';
+import { LayoutProvider, useLayout } from './LayoutContext.js';
+import { MIN_ROWS } from './layout.js';
 
 interface AppProps {
   username: string;
@@ -39,7 +41,8 @@ const PANELS: { label: string; render: (ctx: PanelContext) => React.ReactNode }[
 
 const PANEL_LABELS = PANELS.map((p) => p.label);
 
-export const App: React.FC<AppProps> = ({ username, stats, repos, cached, fetchedAt, fast, onReload }) => {
+const Dashboard: React.FC<AppProps> = ({ username, stats, repos, cached, fetchedAt, fast, onReload }) => {
+  const layout = useLayout();
   const [panelIndex, setPanelIndex] = useState(0);
   const { exit } = useApp();
 
@@ -64,18 +67,32 @@ export const App: React.FC<AppProps> = ({ username, stats, repos, cached, fetche
     }
   });
 
+  if (layout.tooSmall) {
+    return (
+      <Text color="yellow">
+        {`Terminal too small: ${layout.rows} rows, needs at least ${MIN_ROWS}. Resize it, or press q to quit.`}
+      </Text>
+    );
+  }
+
   return (
     <Box flexDirection="column">
-      <Header username={username} cached={cached} fetchedAt={fetchedAt} />
-      <Box marginTop={0} paddingX={1}>
+      <Header username={username} cached={cached} fetchedAt={fetchedAt} compact={layout.compact} />
+      <Box paddingX={1}>
         <NavBar labels={PANEL_LABELS} activeIndex={panelIndex} />
       </Box>
-      <Box marginTop={1} borderStyle="single" borderColor="gray">
+      <Box marginTop={layout.gap} borderStyle="single" borderColor="gray">
         {PANELS[panelIndex].render({ stats, repos, fast })}
       </Box>
-      <Box marginTop={0} paddingX={1}>
+      <Box paddingX={1}>
         <Text color="gray">{`← → navigate  1-${PANELS.length} jump  r reload  q quit`}</Text>
       </Box>
     </Box>
   );
 };
+
+export const App: React.FC<AppProps> = (props) => (
+  <LayoutProvider>
+    <Dashboard {...props} />
+  </LayoutProvider>
+);

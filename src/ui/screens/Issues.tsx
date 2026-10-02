@@ -1,5 +1,7 @@
 import React from 'react';
 import { Box, Text } from 'ink';
+import { Panel } from '../components/Panel.js';
+import { useLayout } from '../LayoutContext.js';
 import { AggregatedStats } from '../../types/index.js';
 import { BarChart } from '../components/BarChart.js';
 
@@ -8,6 +10,7 @@ interface IssuesProps {
 }
 
 export const Issues: React.FC<IssuesProps> = ({ stats }) => {
+  const { gap } = useLayout();
   const issueItems = [
     { label: 'Open Issues   ', value: stats.totalIssuesOpen, color: 'red' },
     { label: 'Closed Issues ', value: stats.totalIssuesClosed, color: 'green' },
@@ -23,18 +26,15 @@ export const Issues: React.FC<IssuesProps> = ({ stats }) => {
   const totalPRs = stats.totalPRsOpen + stats.totalPRsMerged + stats.totalPRsClosed;
 
   return (
-    <Box flexDirection="column" padding={1}>
-      <Text bold color="cyan" underline>🐛 Issues & Pull Requests</Text>
-      <Box marginTop={1} flexDirection="column">
-        <Text bold color="white">Issues (total: {totalIssues.toLocaleString()})</Text>
-        <Box marginTop={0} marginBottom={1}>
-          <BarChart items={issueItems} maxBarWidth={40} />
-        </Box>
-        <Text bold color="white">Pull Requests (total: {totalPRs.toLocaleString()})</Text>
-        <Box marginTop={0}>
-          <BarChart items={prItems} maxBarWidth={40} />
-        </Box>
+    <Panel title="🐛 Issues & Pull Requests">
+      <Text bold color="white">Issues (total: {totalIssues.toLocaleString()})</Text>
+      <Box marginBottom={gap}>
+        <BarChart items={issueItems} maxBarWidth={40} />
       </Box>
-    </Box>
+      <Text bold color="white">Pull Requests (total: {totalPRs.toLocaleString()})</Text>
+      <Box>
+        <BarChart items={prItems} maxBarWidth={40} />
+      </Box>
+    </Panel>
   );
 };

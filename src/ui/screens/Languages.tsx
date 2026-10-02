@@ -1,5 +1,6 @@
 import React from 'react';
-import { Box, Text } from 'ink';
+import { Panel } from '../components/Panel.js';
+import { useLayout } from '../LayoutContext.js';
 import { AggregatedStats } from '../../types/index.js';
 import { BarChart } from '../components/BarChart.js';
 
@@ -17,9 +18,10 @@ const fmtBytes = (b: number) => {
 };
 
 export const Languages: React.FC<LanguagesProps> = ({ stats }) => {
+  const { contentRows } = useLayout();
   const sorted = Object.entries(stats.languages)
     .sort(([, a], [, b]) => b - a)
-    .slice(0, 15);
+    .slice(0, Math.min(15, contentRows));
 
   const items = sorted.map(([lang, bytes], i) => ({
     label: lang,
@@ -28,15 +30,12 @@ export const Languages: React.FC<LanguagesProps> = ({ stats }) => {
   }));
 
   return (
-    <Box flexDirection="column" padding={1}>
-      <Text bold color="cyan" underline>🔤 Languages (by bytes)</Text>
-      <Box marginTop={1}>
-        <BarChart
-          items={items}
-          maxBarWidth={40}
-          valueFormatter={(v) => `${fmtBytes(v)} (${stats.totalBytes > 0 ? ((v / stats.totalBytes) * 100).toFixed(1) : 0}%)`}
-        />
-      </Box>
-    </Box>
+    <Panel title="🔤 Languages (by bytes)">
+      <BarChart
+        items={items}
+        maxBarWidth={40}
+        valueFormatter={(v) => `${fmtBytes(v)} (${stats.totalBytes > 0 ? ((v / stats.totalBytes) * 100).toFixed(1) : 0}%)`}
+      />
+    </Panel>
   );
 };
