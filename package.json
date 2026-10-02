@@ -3,34 +3,48 @@
   "version": "1.0.0",
   "type": "module",
   "description": "Interactive GitHub profile statistics dashboard in your terminal",
-  "main": "dist/index.js",
   "bin": {
     "github-stats": "./dist/index.js"
   },
   "scripts": {
     "build": "tsc",
-    "dev": "ts-node --esm src/index.ts",
+    "dev": "tsx src/index.ts",
     "start": "node dist/index.js",
-    "prepublishOnly": "npm run build"
+    "lint": "eslint src test",
+    "test": "tsx --test test/*.test.ts",
+    "prepublishOnly": "npm run lint && npm test && npm run build"
   },
-  "keywords": ["github", "statistics", "cli", "terminal", "dashboard"],
+  "engines": {
+    "node": ">=20"
+  },
+  "files": [
+    "dist"
+  ],
+  "keywords": [
+    "github",
+    "statistics",
+    "cli",
+    "terminal",
+    "dashboard"
+  ],
   "license": "MIT",
   "dependencies": {
-    "@octokit/graphql": "^8.1.1",
-    "@octokit/rest": "^21.0.2",
+    "@octokit/plugin-retry": "^8.1.1",
+    "@octokit/plugin-throttling": "^11.0.5",
+    "@octokit/rest": "^22.0.1",
     "chalk": "^4.1.2",
     "commander": "^12.1.0",
-    "conf": "^13.0.0",
-    "dayjs": "^1.11.13",
     "ink": "^4.4.1",
-    "ink-spinner": "^5.0.0",
     "react": "^18.3.1",
-    "zod": "^3.23.8"
+    "string-width": "^5.1.2"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/node": "^22.9.0",
     "@types/react": "^18.3.12",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.6.3"
+    "eslint": "^10.11.0",
+    "tsx": "^4.23.15",
+    "typescript": "^5.6.3",
+    "typescript-eslint": "^8.71.0"
   }
 }
