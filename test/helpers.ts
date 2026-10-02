@@ -1,0 +1,36 @@
+import { RepoData } from '../src/types/index.js';
+
+export function makeRepo(overrides: Partial<RepoData> = {}): RepoData {
+  return {
+    id: 1,
+    name: 'repo',
+    fullName: 'octo/repo',
+    description: null,
+    isPrivate: false,
+    isFork: false,
+    isArchived: false,
+    stars: 0,
+    forks: 0,
+    watchers: 0,
+    size: 0,
+    language: null,
+    topics: [],
+    languages: {},
+    openIssues: 0,
+    closedIssues: 0,
+    openPRs: 0,
+    mergedPRs: 0,
+    closedPRs: 0,
+    totalCommits: 0,
+    linesAdded: 0,
+    linesDeleted: 0,
+    releases: 0,
+    commitActivity: [],
+    statsStatus: 'skipped',
+    createdAt: '2020-01-01T00:00:00Z',
+    updatedAt: '2020-01-01T00:00:00Z',
+    pushedAt: '2020-01-01T00:00:00Z',
+    htmlUrl: 'https://github.com/octo/repo',
+    ...overrides,
+  };
+}
