@@ -44,6 +44,130 @@ A aplicação inclui:
 
 > O GitHub responde `202` enquanto calcula as estatísticas de linhas/atividade. Se ainda não estiverem prontas após algumas tentativas, o repositório fica **sem estatísticas** e o Overview exibe um aviso; rode novamente com `--no-cache` mais tarde.
 
+## 📈 Exemplo de saída
+
+Capturado em 02/10/2026 a partir do perfil do próprio autor, com as opções padrão (escopo `all`, modo completo): 103 repositórios, públicos e privados. As telas são o dashboard real, com 90 colunas de largura.
+
+```
+╭────────────────────────────────────────────────────────────────────────────────────────╮
+│ 📈 github-stats                                                                @BGLuis │
+╰────────────────────────────────────────────────────────────────────────────────────────╯
+ [Overview] Languages Activity Top Repos Issues & PRs Topics Releases
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                                                                                        │
+│ 📊 Overview                                                                            │
+│                                                                                        │
+│ 📦 Repositories              103                                                       │
+│ 🌟 Total Stars               25                                                        │
+│ 🍴 Total Forks               6                                                         │
+│ 👁 Total Watchers            49                                                        │
+│ 📝 Commits (you)             3,260                                                     │
+│ 🟢 Lines Added (you)         16,314,457                                                │
+│ 🔴 Lines Deleted (you)       5,021,619                                                 │
+│ 🔢 Lines of Code (est.)      ~912.8K lines                                             │
+│ 📏 Avg Repo Size             26.8 MB                                                   │
+│ 💾 Total Size                2.7 GB                                                    │
+│ 🐛 Open Issues               298                                                       │
+│ 🔒 Closed Issues             745                                                       │
+│ 🔀 PRs Merged                1,504                                                     │
+│ 🏷 Total Releases            148                                                       │
+│                                                                                        │
+└────────────────────────────────────────────────────────────────────────────────────────┘
+ ← → navigate  1-7 jump  r reload  q quit
+```
+
+<details>
+<summary><b>Mais telas</b></summary>
+
+**Linguagens**
+
+```
+╭────────────────────────────────────────────────────────────────────────────────────────╮
+│ 📈 github-stats                                                                @BGLuis │
+╰────────────────────────────────────────────────────────────────────────────────────────╯
+ Overview [Languages] Activity Top Repos Issues & PRs Topics Releases
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                                                                                        │
+│ 🔤 Languages (by bytes)                                                                │
+│                                                                                        │
+│ TypeScript ████████████████████████████████████████ 9.0MB (24.5%)                      │
+│ HTML       █████████████████████████ 5.7MB (15.5%)                                     │
+│ Rust       ███████████████████████ 5.1MB (13.9%)                                       │
+│ PHP        ███████████████ 3.4MB (9.3%)                                                │
+│ Python     ████████ 1.8MB (4.9%)                                                       │
+│ Shell      ███████ 1.6MB (4.3%)                                                        │
+│ JavaScript ██████ 1.5MB (4.0%)                                                         │
+│ Dart       ██████ 1.4MB (3.8%)                                                         │
+│ CSS        ██████ 1.3MB (3.6%)                                                         │
+│ Kotlin     █████ 1.2MB (3.2%)                                                          │
+│ TeX        ████ 935.6KB (2.6%)                                                         │
+│ C++        ███ 767.9KB (2.1%)                                                          │
+│ Go         ███ 634.6KB (1.7%)                                                          │
+│ SCSS       ██ 558.0KB (1.5%)                                                           │
+│ Makefile   ██ 506.0KB (1.4%)                                                           │
+│                                                                                        │
+└────────────────────────────────────────────────────────────────────────────────────────┘
+ ← → navigate  1-7 jump  r reload  q quit
+```
+
+**Atividade de commits**
+
+```
+╭────────────────────────────────────────────────────────────────────────────────────────╮
+│ 📈 github-stats                                                                @BGLuis │
+╰────────────────────────────────────────────────────────────────────────────────────────╯
+ Overview Languages [Activity] Top Repos Issues & PRs Topics Releases
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                                                                                        │
+│ 📅 Your Commit Activity (last 12 months)                                               │
+│                                                                                        │
+│ ▄▂▂▂▂▁▄▂▄▇█                                                                            │
+│                                                                                        │
+│ 2025-11  ▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉ 172                                                        │
+│ 2025-12  ▉▉▉▉▉▉▉▉ 75                                                                   │
+│ 2026-01  ▉▉▉▉▉▉▉▉▉ 88                                                                  │
+│ 2026-02  ▉▉▉▉▉▉▉▉▉▉▉ 104                                                               │
+│ 2026-03  ▉▉▉▉▉▉▉▉ 80                                                                   │
+│ 2026-04  ▉▉▉▉▉▉ 56                                                                     │
+│ 2026-05  ▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉ 182                                                       │
+│ 2026-06  ▉▉▉▉▉▉▉▉▉▉▉▉ 120                                                              │
+│ 2026-07  ▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉ 178                                                        │
+│ 2026-08  ▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉ 356                                      │
+│ 2026-09  ▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉▉ 393                                  │
+│ 2026-10   0                                                                            │
+│                                                                                        │
+└────────────────────────────────────────────────────────────────────────────────────────┘
+ ← → navigate  1-7 jump  r reload  q quit
+```
+
+**Issues & Pull Requests**
+
+```
+╭────────────────────────────────────────────────────────────────────────────────────────╮
+│ 📈 github-stats                                                                @BGLuis │
+╰────────────────────────────────────────────────────────────────────────────────────────╯
+ Overview Languages Activity Top Repos [Issues & PRs] Topics Releases
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                                                                                        │
+│ 🐛 Issues & Pull Requests                                                              │
+│                                                                                        │
+│ Issues (total: 1,043)                                                                  │
+│ Open Issues    ████████████████ 298                                                    │
+│ Closed Issues  ████████████████████████████████████████ 745                            │
+│                                                                                        │
+│ Pull Requests (total: 1,587)                                                           │
+│ Open PRs   █ 13                                                                        │
+│ Merged PRs ████████████████████████████████████████ 1,504                              │
+│ Closed PRs ██ 70                                                                       │
+│                                                                                        │
+└────────────────────────────────────────────────────────────────────────────────────────┘
+ ← → navigate  1-7 jump  r reload  q quit
+```
+
+</details>
+
+> Linhas adicionadas/removidas contam tudo o que foi commitado, inclusive lockfiles e arquivos gerados, por isso ficam muito acima das linhas de código estimadas (bytes do código atual ÷ 40). Commits e linhas são do usuário analisado; issues, PRs e releases são totais dos repositórios.
+
 ## 📋 Motivo
 O projeto nasceu porque queria extrair estatísticas do meu perfil do GitHub e não achei locais ou ferramentas disponíveis que fizessem isso de forma completa, detalhada e direto no terminal.
 
